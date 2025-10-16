@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE store_dataset.load_sales_data(num_rows INT DEFAULT 100)
+CREATE OR REPLACE PROCEDURE testes.load_sales_data(num_rows INT DEFAULT 100)
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -13,18 +13,36 @@ DECLARE
 	ship_cities JSONB;
 	city TEXT;
 	city_index  INT;
-	product_name TEXT[] := ARRAY['Rasteira Lua Cheia', 'Rasteira Jazz', 'Rasteira Chocolate', 'Loafer Clarice', 'Loafer Anoitecer', 'Sapatilha Alexia',
-		'Sapatilha Anoitecer', 'Bota Monty Black', 'Bota Beea Inverno', 'Bota Chocolate', 'Tênis Fluent Dawn', 'Tênis Fluent Morning', 'Tênis Souza C.'];
+	products JSON := '{
+		"Rasteira Lua Cheia": {"price": 190.90, "colors": ["Preto", "Preto Claro"]},
+		"Rasteira Jazz": {"price": 220.90, "colors": ["Preto", "Vermelho Escuro"]},
+		"Rasteira Chocolate": {"price": 190.90, "colors": ["Preto"]},
+		"Loafer Clarice": {"price": 259.90, "colors": ["Vermelho", "Vermelho Escuro", "Vermelho Claro"]},
+		"Loafer Anoitecer": {"price": 239.90, "colors": ["Preto"]},
+		"Sapatilha Alexia": {"price": 139.90, "colors": ["Azul Claro", "Azul Esmeralda"]},
+		"Sapatilha Anoitecer": {"price": 139.90, "colors": ["Preto", "Cinza"]},
+		"Bota Monty Black": {"price": 399.90, "colors": ["Preto", "Preto Claro"]},
+		"Bota Beea Inverno": {"price": 399.90, "colors": ["Branco", "Cinza"]},
+		"Bota Chocolate": {"price": 379.90, "colors": ["Preto"]},
+		"Tênis Fluent Dawn": {"price": 299.90, "colors": ["Verde", "Azul", "Branco", "Roxo"]},
+		"Tênis Fluent Morning": {"price": 299.90, "colors": ["Branco", "Amarelo Claro"]},
+		"Tênis Souza C.": {"price": 249.90, "colors": ["Colorido", "Vermelho"]}
+	}';
+	products_keys TEXT[];
+	product TEXT;
+	colors TEXT[];
+	color TEXT;
 	product_size TEXT[] := ARRAY['38', '39', '40', '41', '42', '43'];
-	color TEXT[] := ARRAY['Azul', 'Vermelho', 'Preto', 'Cinza', 'Ciano', 'Branco', 'Amarelo'];
 	material TEXT[] := ARRAY['Camurça', 'Couro liso', 'Couro Sintético'];
 	bonus_granted TEXT;
 	quantity INT;
 	price DECIMAL;
 
 BEGIN
-	FOR i IN 1..num_rows LOOP
+	products_keys := array(SELECT json_object_keys(products));
 
+	FOR i IN 1..num_rows LOOP
+		
 		IF RANDOM() < 0.3 THEN
 			delivery_by := ARRAY['LoggiX', 'PediuChegou'];
 			ship_cities := cities -> 1;
@@ -60,9 +78,12 @@ BEGIN
 		city_index := floor(random() * jsonb_array_length(ship_cities));
 		city := ship_cities -> city_index;
 		city := replace(city, '"', '');
-		price := round((150 + random() * (500 - 150))::numeric, 2);
-
-		INSERT INTO store_dataset.sales (
+		product := products_keys[ceil(random() * array_length(products_keys, 1))];
+		price := (products -> product ->> 'price')::NUMERIC;
+		colors := ARRAY(SELECT json_array_elements_text(products -> product -> 'colors'));
+		color := colors[ceil(random() * array_length(colors, 1))];
+		
+		INSERT INTO testes.sales (
 			order_id,
 			paid_at,
 			status,
@@ -88,9 +109,9 @@ BEGIN
 			delivery_by[1 + FLOOR(RANDOM() * array_length(delivery_by, 1))],
 			tracking_code,
 			city,
-			product_name[1 + FLOOR(RANDOM() * array_length(product_name, 1))],
+			product,
 			product_size[1 + FLOOR(RANDOM() * array_length(product_size, 1))],
-			color[1 + FLOOR(RANDOM() * array_length(color, 1))],
+			color,
 			material[1 + FLOOR(RANDOM() * array_length(material, 1))],
 			bonus_granted::BOOLEAN,
 			quantity,
